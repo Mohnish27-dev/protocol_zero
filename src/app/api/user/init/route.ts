@@ -22,7 +22,12 @@ export async function POST() {
 
         const adminDb = getAdminDb();
         if (!adminDb) {
-            return NextResponse.json({ error: "Database not configured" }, { status: 503 });
+            // Firestore not configured — skip init gracefully
+            return NextResponse.json({
+                success: true,
+                message: "Database not configured — skipping user init",
+                isNewUser: false,
+            });
         }
 
         // Check if user already exists
