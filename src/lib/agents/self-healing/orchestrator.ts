@@ -21,6 +21,7 @@ import {
     getCommitCount,
     cleanupSandbox,
     parseGitHubUrl,
+    createPullRequest,
 } from "./repo-manager";
 import { runTests } from "./test-runner";
 import { scanForBugs } from "./bug-scanner";
@@ -179,6 +180,20 @@ export async function runHealingLoop(input: OrchestratorInput): Promise<void> {
 
                 await finalizeSession(sessionId, "completed", allBugs, attempts, score);
                 emitScore(sessionId, score as unknown as Record<string, unknown>);
+
+                // Create PR
+                emitLog(sessionId, `📝 Creating Pull Request...`);
+                const prResult = await createPullRequest(
+                    repoDir, repoOwner, repoName, branchName, githubToken,
+                    score.bugsFixed, score.totalBugs, attempt, score.finalScore
+                );
+                if (prResult.success) {
+                    emitLog(sessionId, `✅ PR created: ${prResult.prUrl}`);
+                    await updateSessionField(sessionId, { prUrl: prResult.prUrl, prNumber: prResult.prNumber });
+                } else {
+                    emitLog(sessionId, `⚠️ PR creation failed: ${prResult.error}`);
+                }
+
                 emitStatus(sessionId, "completed", `✅ Self-healing complete! Score: ${score.finalScore}/100`);
                 return;
             }
@@ -325,10 +340,40 @@ export async function runHealingLoop(input: OrchestratorInput): Promise<void> {
         if (finalTest.passed) {
             await finalizeSession(sessionId, "completed", allBugs, attempts, score);
             emitScore(sessionId, score as unknown as Record<string, unknown>);
+
+            // Create PR
+            emitLog(sessionId, `📝 Creating Pull Request...`);
+            const prResult = await createPullRequest(
+                repoDir, repoOwner, repoName, branchName, githubToken,
+                score.bugsFixed, score.totalBugs, MAX_ATTEMPTS, score.finalScore
+            );
+            if (prResult.success) {
+                emitLog(sessionId, `✅ PR created: ${prResult.prUrl}`);
+                await updateSessionField(sessionId, { prUrl: prResult.prUrl, prNumber: prResult.prNumber });
+            } else {
+                emitLog(sessionId, `⚠️ PR creation failed: ${prResult.error}`);
+            }
+
             emitStatus(sessionId, "completed", `✅ Self-healing complete after ${MAX_ATTEMPTS} attempts! Score: ${score.finalScore}/100`);
         } else {
             await finalizeSession(sessionId, "failed", allBugs, attempts, score);
             emitScore(sessionId, score as unknown as Record<string, unknown>);
+
+            // Still create PR with partial fixes
+            if (score.bugsFixed > 0) {
+                emitLog(sessionId, `📝 Creating PR with partial fixes...`);
+                const prResult = await createPullRequest(
+                    repoDir, repoOwner, repoName, branchName, githubToken,
+                    score.bugsFixed, score.totalBugs, MAX_ATTEMPTS, score.finalScore
+                );
+                if (prResult.success) {
+                    emitLog(sessionId, `✅ PR created: ${prResult.prUrl}`);
+                    await updateSessionField(sessionId, { prUrl: prResult.prUrl, prNumber: prResult.prNumber });
+                } else {
+                    emitLog(sessionId, `⚠️ PR creation failed: ${prResult.error}`);
+                }
+            }
+
             emitStatus(
                 sessionId,
                 "failed",

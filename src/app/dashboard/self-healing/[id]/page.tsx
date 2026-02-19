@@ -15,6 +15,7 @@ import Link from "next/link";
 import {
     ArrowLeft,
     GitBranch,
+    GitPullRequest,
     ExternalLink,
     Loader2,
     Terminal,
@@ -46,6 +47,8 @@ interface SessionDetail {
     startedAt: string;
     completedAt?: string;
     error?: string;
+    prUrl?: string;
+    prNumber?: number;
 }
 
 export default function SessionDetailPage() {
@@ -285,6 +288,27 @@ export default function SessionDetailPage() {
                 </div>
             </div>
 
+            {/* PR Link Banner */}
+            {session.prUrl && (
+                <a
+                    href={session.prUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl hover:bg-emerald-500/15 transition-colors group"
+                >
+                    <GitPullRequest className="w-5 h-5 text-emerald-400" />
+                    <div className="flex-1">
+                        <span className="text-sm font-medium text-emerald-300">
+                            Pull Request {session.prNumber ? `#${session.prNumber}` : "Created"}
+                        </span>
+                        <span className="text-xs text-zinc-500 ml-2">
+                            {session.branchName} → main
+                        </span>
+                    </div>
+                    <ExternalLink className="w-4 h-4 text-zinc-500 group-hover:text-emerald-400 transition-colors" />
+                </a>
+            )}
+
             {/* Active progress bar */}
             {isActive && (
                 <div className="relative h-1 bg-white/5 rounded-full overflow-hidden">
@@ -312,8 +336,8 @@ export default function SessionDetailPage() {
                         key={tab.key}
                         onClick={() => setActiveTab(tab.key)}
                         className={`flex-1 px-4 py-2.5 rounded-lg text-xs font-medium transition-all ${activeTab === tab.key
-                                ? "bg-white/10 text-zinc-200"
-                                : "text-zinc-500 hover:text-zinc-300"
+                            ? "bg-white/10 text-zinc-200"
+                            : "text-zinc-500 hover:text-zinc-300"
                             }`}
                     >
                         {tab.label}
@@ -370,14 +394,14 @@ export default function SessionDetailPage() {
                                     <div
                                         key={i}
                                         className={`py-0.5 ${log.includes("❌") || log.includes("💀")
-                                                ? "text-red-400"
-                                                : log.includes("✅") || log.includes("🎉")
-                                                    ? "text-emerald-400"
-                                                    : log.includes("⚠️")
-                                                        ? "text-yellow-400"
-                                                        : log.includes("🔧")
-                                                            ? "text-cyan-400"
-                                                            : "text-zinc-400"
+                                            ? "text-red-400"
+                                            : log.includes("✅") || log.includes("🎉")
+                                                ? "text-emerald-400"
+                                                : log.includes("⚠️")
+                                                    ? "text-yellow-400"
+                                                    : log.includes("🔧")
+                                                        ? "text-cyan-400"
+                                                        : "text-zinc-400"
                                             }`}
                                     >
                                         {log}

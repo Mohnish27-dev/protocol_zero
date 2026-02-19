@@ -7,7 +7,8 @@
 export { runHealingLoop } from "./orchestrator";
 export type { OrchestratorInput } from "./orchestrator";
 
-export { cloneRepo, createBranch, commitChanges, pushBranch, parseGitHubUrl, cleanupSandbox, getHealingBranchName } from "./repo-manager";
+export { cloneRepo, createBranch, commitChanges, pushBranch, parseGitHubUrl, cleanupSandbox, getHealingBranchName, createPullRequest } from "./repo-manager";
+export type { PullRequestResult } from "./repo-manager";
 export { runTests, detectTestCommand } from "./test-runner";
 export type { TestResult, ParsedError } from "./test-runner";
 export { scanForBugs, scanFileTree } from "./bug-scanner";
