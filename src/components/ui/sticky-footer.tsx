@@ -118,7 +118,7 @@ export function StickyFooter({ className, ...props }: StickyFooterProps) {
 
                         {/* Copyright Footer */}
                         <div className="text-muted-foreground flex flex-col items-center justify-between gap-2 border-t border-border pt-4 text-sm md:flex-row relative z-10">
-                            <p>© {new Date().getFullYear()} Protocol Zero. All rights reserved.</p>
+                            <p suppressHydrationWarning>© {new Date().getFullYear()} Protocol Zero. All rights reserved.</p>
                             <p>Developed by Tech Chaos Team</p>
                         </div>
                     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Bell, Check, Trash2, Shield, Coins, Presentation, GitBranch, Wrench } from "lucide-react";
 import { NotificationCard } from "@/components/ui/notification-card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -19,7 +19,7 @@ interface NotificationsClientProps {
     initialNotifications: Notification[];
 }
 
-const formatTime = (timestamp: string) => {
+const formatTimeClient = (timestamp: string) => {
     const date = new Date(timestamp);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
@@ -78,6 +78,17 @@ export function NotificationsClient({ initialNotifications }: NotificationsClien
     const [notifications, setNotifications] = useState(initialNotifications);
     const [filter, setFilter] = useState<"all" | "unread">("all");
     const [isMarkingAll, setIsMarkingAll] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    // Only compute relative times after client mount to avoid hydration mismatch
+    const formatTime = useCallback((timestamp: string) => {
+        if (!mounted) return "";
+        return formatTimeClient(timestamp);
+    }, [mounted]);
 
     const filteredNotifications = filter === "unread"
         ? notifications.filter(n => !n.isRead)

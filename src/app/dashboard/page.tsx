@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import useSWR from "swr";
+import { useState, useEffect } from "react";
 import {
   Shield,
   ArrowRight,
@@ -43,7 +44,7 @@ interface ActivityItem {
 // Fetcher for SWR
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-// Time-based greeting
+// Time-based greeting (computed client-side only to avoid hydration mismatch)
 const getGreeting = () => {
   const hour = new Date().getHours();
   if (hour < 12) return "Good morning";
@@ -70,6 +71,12 @@ const activityConfig: Record<string, { icon: typeof Shield; dotClass: string; ic
 export default function DashboardPage() {
   const { user } = useUser();
   const firstName = user?.firstName || "there";
+
+  // Compute greeting client-side only to prevent hydration mismatch
+  const [greeting, setGreeting] = useState("Welcome");
+  useEffect(() => {
+    setGreeting(getGreeting());
+  }, []);
 
   // Initialize user in Firestore on first dashboard load
   useSWR(
@@ -98,7 +105,7 @@ export default function DashboardPage() {
           </span>
         </div>
         <h1 className="text-2xl md:text-3xl font-semibold">
-          <span className="text-gradient">{getGreeting()}, </span>
+          <span className="text-gradient">{greeting}, </span>
           <span className="text-gradient-violet">{firstName}</span>
         </h1>
         <p className="text-sm text-zinc-500 mt-2">
@@ -305,20 +312,25 @@ function ActivityRow({ activity }: { activity: ActivityItem }) {
   const config = activityConfig[activity.type] || activityConfig["code-review"];
   const Icon = config.icon;
 
-  const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
+  // Compute relative time client-side only to prevent hydration mismatch
+  const [timeLabel, setTimeLabel] = useState("");
+  useEffect(() => {
+    const formatTime = (timestamp: string) => {
+      const date = new Date(timestamp);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return "just now";
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
-  };
+      if (diffMins < 1) return "just now";
+      if (diffMins < 60) return `${diffMins}m ago`;
+      if (diffHours < 24) return `${diffHours}h ago`;
+      if (diffDays < 7) return `${diffDays}d ago`;
+      return date.toLocaleDateString();
+    };
+    setTimeLabel(formatTime(activity.timestamp));
+  }, [activity.timestamp]);
 
   return (
     <div className="flex items-center gap-4 px-5 py-4 hover:bg-white/[0.02] transition-colors group cursor-pointer">
@@ -334,8 +346,8 @@ function ActivityRow({ activity }: { activity: ActivityItem }) {
         </div>
         <p className="text-xs text-zinc-500 truncate mt-0.5">{activity.description}</p>
       </div>
-      <span className="text-xs text-zinc-600 whitespace-nowrap">
-        {formatTime(activity.timestamp)}
+      <span className="text-xs text-zinc-600 whitespace-nowrap" suppressHydrationWarning>
+        {timeLabel}
       </span>
     </div>
   );

@@ -209,17 +209,21 @@ function ProjectCard({
     project.lastRun.issueCounts.medium
     : 0;
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  // Compute relative date client-side only to prevent hydration mismatch
+  const [dateLabel, setDateLabel] = useState("");
+  useEffect(() => {
+    if (project.lastRun?.createdAt) {
+      const date = new Date(project.lastRun.createdAt);
+      const now = new Date();
+      const diff = now.getTime() - date.getTime();
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
-    if (days === 0) return "Today";
-    if (days === 1) return "Yesterday";
-    if (days < 7) return `${days} days ago`;
-    return date.toLocaleDateString();
-  };
+      if (days === 0) setDateLabel("Today");
+      else if (days === 1) setDateLabel("Yesterday");
+      else if (days < 7) setDateLabel(`${days} days ago`);
+      else setDateLabel(date.toLocaleDateString());
+    }
+  }, [project.lastRun?.createdAt]);
 
   const getProjectStatusStyle = (status: 'active' | 'paused' | 'stopped') => {
     switch (status) {
@@ -272,8 +276,8 @@ function ProjectCard({
                 {totalIssues} issues
               </div>
             )}
-            <span className="text-sm text-zinc-500">
-              {formatDate(project.lastRun.createdAt)}
+            <span className="text-sm text-zinc-500" suppressHydrationWarning>
+              {dateLabel}
             </span>
           </>
         ) : (
