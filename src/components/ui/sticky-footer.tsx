@@ -55,7 +55,7 @@ export function StickyFooter({ className, ...props }: StickyFooterProps) {
                                 viewBox="0 0 500 100"
                             />
                             {/* <Image
-                                src="/zero.png"
+                                src="/zero2.png"
                                 alt="Protocol Zero Logo"
                                 width={80}
                                 height={80}
@@ -68,7 +68,7 @@ export function StickyFooter({ className, ...props }: StickyFooterProps) {
                             <AnimatedContainer className="w-full max-w-sm min-w-2xs space-y-4">
                                 <div className="flex items-center gap-2">
                                     <Image
-                                        src="/zero.png"
+                                        src="/zero2.png"
                                         alt="Protocol Zero Logo"
                                         width={160}
                                         height={160}

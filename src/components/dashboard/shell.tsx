@@ -111,7 +111,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
         <div className="h-14 flex items-center justify-between px-6 bg-neutral-950/90 backdrop-blur-xl border-b border-white/5">
           <a href="/dashboard" className="flex items-center gap-2.5 group">
             <Image
-              src="/zero.png"
+              src="/zero2.png"
               alt="Protocol Zero Logo"
               width={32}
               height={32}

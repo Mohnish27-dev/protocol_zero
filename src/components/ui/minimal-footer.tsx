@@ -86,7 +86,7 @@ export function MinimalFooter() {
                     <div className="col-span-6 flex flex-col gap-5 md:col-span-4">
                         <a href="#" className="flex items-center gap-2">
                             <Image
-                                src="/zero.png"
+                                src="/zero2.png"
                                 alt="Protocol Zero Logo"
                                 width={40}
                                 height={40}

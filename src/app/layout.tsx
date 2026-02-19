@@ -36,9 +36,9 @@ export const metadata: Metadata = {
   keywords: ["code review", "AI agent", "code police", "security scanning", "auto-fix", "GitHub"],
   authors: [{ name: "Protocol Zero Team" }],
   icons: {
-    icon: "/zero.png",
-    shortcut: "/zero.png",
-    apple: "/zero.png",
+    icon: "/zero2.png",
+    shortcut: "/zero2.png",
+    apple: "/zero2.png",
   },
   openGraph: {
     title: "Protocol Zero - AI-Powered Code Police",
