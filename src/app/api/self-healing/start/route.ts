@@ -7,12 +7,17 @@ import { v4 as uuidv4 } from "uuid";
 
 /**
  * ============================================================================
- * SELF-HEALING - START ENDPOINT
+ * SELF-HEALING - START ENDPOINT (AUTONOMOUS / FORK-BASED)
  * ============================================================================
  * POST /api/self-healing/start
  *
  * Accepts a GitHub URL, creates a healing session, and kicks off
  * the healing loop in the background.
+ *
+ * No GitHub auth required from the user — uses GITHUB_BOT_TOKEN from .env
+ * to fork the repo, push fixes, and create cross-fork PRs.
+ *
+ * The user just enters a URL. That's it.
  */
 export async function POST(request: NextRequest) {
     try {
@@ -46,41 +51,11 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Get GitHub token from Clerk OAuth
-        let githubToken: string | null = null;
-
-        try {
-            const clerkResponse = await fetch(
-                `https://api.clerk.com/v1/users/${userId}/oauth_access_tokens/oauth_github`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}`,
-                    },
-                }
-            );
-
-            if (clerkResponse.ok) {
-                const tokens = await clerkResponse.json();
-                if (tokens && tokens.length > 0 && tokens[0].token) {
-                    githubToken = tokens[0].token;
-                }
-            }
-        } catch (tokenError) {
-            console.error("[Self-Healing] Error fetching Clerk token:", tokenError);
-        }
-
-        // Fallback: Check Firestore for stored token
-        const db = getAdminDb();
-        if (!githubToken && db) {
-            const userDoc = await db.collection("users").doc(userId).get();
-            const userData = userDoc.data();
-            githubToken = userData?.githubAccessToken || null;
-        }
-
-        if (!githubToken) {
+        // Verify GITHUB_BOT_TOKEN exists
+        if (!process.env.GITHUB_BOT_TOKEN) {
             return NextResponse.json(
-                { error: "GitHub token not found. Please connect GitHub in settings." },
-                { status: 400 }
+                { error: "Server configuration error: GITHUB_BOT_TOKEN is not set." },
+                { status: 500 }
             );
         }
 
@@ -108,16 +83,17 @@ export async function POST(request: NextRequest) {
         };
 
         // Store in Firestore
+        const db = getAdminDb();
         if (db) {
             await db.collection("healing-sessions").doc(sessionId).set(sessionData);
         }
 
         // Start the healing loop in the background (non-blocking)
+        // No githubToken needed — the orchestrator uses GITHUB_BOT_TOKEN from .env
         runHealingLoop({
             sessionId,
             repoUrl,
             userId,
-            githubToken,
         }).catch((error) => {
             console.error("[Self-Healing] Background loop error:", error);
         });

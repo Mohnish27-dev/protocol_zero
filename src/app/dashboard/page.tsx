@@ -8,14 +8,22 @@ import {
   ArrowRight,
   Activity,
   Sparkles,
+  HeartPulse,
+  GitBranch,
+  Bug,
+  CheckCircle2,
+  Lock,
+  Globe,
+  Zap,
+  TrendingUp,
 } from "lucide-react";
 
 /**
  * ============================================================================
- * DASHBOARD HOME PAGE - PREMIUM DARK THEME
+ * DASHBOARD HOME PAGE - DUAL FEATURE SHOWCASE
  * ============================================================================
- * Ultra-sleek dashboard with glassmorphism, accent glows, and micro-animations.
- * Focused on Code Police agent.
+ * Premium dark dashboard showcasing both Code Police and Self-Healing Code
+ * features with descriptive cards, stats, and recent activity.
  */
 
 // Types
@@ -26,7 +34,7 @@ interface DashboardStats {
 
 interface ActivityItem {
   id: string;
-  type: "code-review";
+  type: "code-review" | "self-healing";
   title: string;
   description: string;
   timestamp: string;
@@ -43,43 +51,21 @@ const getGreeting = () => {
   return "Good evening";
 };
 
-// Agent cards configuration with accent colors
-const agents = [
-  {
-    id: "code-police",
-    name: "Code Police",
-    description: "AI-powered code review & auto-fix",
-    icon: Shield,
-    href: "/dashboard/code-police",
-    accentClass: "group-hover:glow-violet",
-    iconBg: "bg-violet-500/10",
-    iconColor: "text-violet-400",
-    dotClass: "accent-dot-violet",
-  },
-];
-
 // Activity type configurations
-const activityConfig = {
+const activityConfig: Record<string, { icon: typeof Shield; dotClass: string; iconColor: string; bgColor: string }> = {
   "code-review": {
     icon: Shield,
     dotClass: "accent-dot-violet",
     iconColor: "text-violet-400",
     bgColor: "bg-violet-500/10",
   },
-};
-
-// Stat card configurations with unique colors
-const statConfigs = [
-  {
-    key: "reviews",
-    label: "Code Reviews",
-    icon: Shield,
-    glowClass: "glow-violet",
-    iconBg: "bg-violet-500/10",
-    iconColor: "text-violet-400",
-    accentBorder: "border-violet-500/20",
+  "self-healing": {
+    icon: Bug,
+    dotClass: "accent-dot-emerald",
+    iconColor: "text-emerald-400",
+    bgColor: "bg-emerald-500/10",
   },
-];
+};
 
 export default function DashboardPage() {
   const { user } = useUser();
@@ -101,13 +87,8 @@ export default function DashboardPage() {
 
   const stats = data?.stats;
 
-  // Stat values array for mapping
-  const statValues = [
-    { value: stats?.codeReviews.total ?? 0, sub: `+${stats?.codeReviews.thisWeek ?? 0} this week` },
-  ];
-
   return (
-    <div className="p-6 lg:p-8 space-y-8 max-w-6xl mx-auto">
+    <div className="p-6 lg:p-8 space-y-10 max-w-6xl mx-auto">
       {/* Premium Welcome Section */}
       <div className="relative">
         <div className="flex items-center gap-2 mb-1">
@@ -121,39 +102,233 @@ export default function DashboardPage() {
           <span className="text-gradient-violet">{firstName}</span>
         </h1>
         <p className="text-sm text-zinc-500 mt-2">
-          Your AI-powered code review workspace
+          Your AI-powered code intelligence platform
         </p>
       </div>
 
-      {/* Stats Grid - Premium Glass Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {statConfigs.map((config, index) => (
-          <StatCard
-            key={config.key}
-            config={config}
-            value={statValues[index]?.value ?? 0}
-            sub={statValues[index]?.sub ?? ""}
-            isLoading={isLoading}
-          />
-        ))}
-      </div>
-
-      {/* Agent Cards - Premium Glass with Accent Colors */}
+      {/* ═══════════════════════════════════════════════════════════════════
+          FEATURE SHOWCASE — Two descriptive feature cards
+          ═══════════════════════════════════════════════════════════════════ */}
       <div>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-5">
           <h2 className="text-xs font-medium text-zinc-500 uppercase tracking-widest">
-            AI Agent
+            AI Agents
           </h2>
           <div className="h-px flex-1 ml-4 bg-gradient-to-r from-zinc-800 to-transparent" />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {agents.map((agent) => (
-            <AgentCard key={agent.id} agent={agent} />
-          ))}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {/* ─── CODE POLICE CARD ─── */}
+          <Link href="/dashboard/code-police" className="group">
+            <div className="relative glass rounded-2xl p-6 transition-all duration-300 hover:scale-[1.01] overflow-hidden border border-white/5 hover:border-violet-500/20">
+              {/* Top accent */}
+              <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-violet-500/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+              <div className="flex items-start justify-between mb-5">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-xl bg-violet-500/10 group-hover:bg-violet-500/20 transition-colors">
+                    <Shield className="w-6 h-6 text-violet-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-zinc-100 group-hover:text-white transition-colors">
+                      Code Police
+                    </h3>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <Lock className="w-3 h-3 text-zinc-500" />
+                      <span className="text-[10px] text-zinc-500 uppercase tracking-wider">
+                        GitHub Auth Required
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <ArrowRight className="w-5 h-5 text-violet-400 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all duration-300 mt-1" />
+              </div>
+
+              <p className="text-sm text-zinc-400 leading-relaxed mb-5">
+                AI-powered <span className="text-zinc-200 font-medium">code maintainer</span> that monitors
+                your GitHub repositories in real-time. Automatically analyzes every
+                commit, detects security vulnerabilities, performance issues, and bugs,
+                then creates auto-fix PRs.
+              </p>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-white/[0.03] rounded-lg p-3 text-center">
+                  <GitBranch className="w-4 h-4 text-violet-400 mx-auto mb-1" />
+                  <span className="text-[10px] text-zinc-500 block">Webhook-based</span>
+                  <span className="text-xs text-zinc-300 font-medium">Auto Scan</span>
+                </div>
+                <div className="bg-white/[0.03] rounded-lg p-3 text-center">
+                  <Shield className="w-4 h-4 text-violet-400 mx-auto mb-1" />
+                  <span className="text-[10px] text-zinc-500 block">Security</span>
+                  <span className="text-xs text-zinc-300 font-medium">& Bugs</span>
+                </div>
+                <div className="bg-white/[0.03] rounded-lg p-3 text-center">
+                  <CheckCircle2 className="w-4 h-4 text-violet-400 mx-auto mb-1" />
+                  <span className="text-[10px] text-zinc-500 block">Auto-Fix</span>
+                  <span className="text-xs text-zinc-300 font-medium">PRs</span>
+                </div>
+              </div>
+
+              {/* Stats bar */}
+              <div className="flex items-center gap-4 mt-4 pt-4 border-t border-white/5">
+                <div className="flex items-center gap-1.5">
+                  <TrendingUp className="w-3.5 h-3.5 text-violet-400" />
+                  <span className="text-xs text-zinc-400">
+                    {isLoading ? "..." : `${stats?.codeReviews.total ?? 0} reviews`}
+                  </span>
+                </div>
+                <span className="text-xs text-zinc-600">
+                  {isLoading ? "" : `+${stats?.codeReviews.thisWeek ?? 0} this week`}
+                </span>
+              </div>
+            </div>
+          </Link>
+
+          {/* ─── SELF-HEALING CODE CARD ─── */}
+          <Link href="/dashboard/self-healing" className="group">
+            <div className="relative glass rounded-2xl p-6 transition-all duration-300 hover:scale-[1.01] overflow-hidden border border-white/5 hover:border-emerald-500/20">
+              {/* Top accent */}
+              <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+              <div className="flex items-start justify-between mb-5">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-xl bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors">
+                    <HeartPulse className="w-6 h-6 text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-zinc-100 group-hover:text-white transition-colors">
+                      Self-Healing Code
+                    </h3>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <Globe className="w-3 h-3 text-zinc-500" />
+                      <span className="text-[10px] text-zinc-500 uppercase tracking-wider">
+                        Any Public Repo URL
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <ArrowRight className="w-5 h-5 text-emerald-400 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all duration-300 mt-1" />
+              </div>
+
+              <p className="text-sm text-zinc-400 leading-relaxed mb-5">
+                AI agent that <span className="text-zinc-200 font-medium">automatically heals broken code</span>.
+                Enter any GitHub URL — the agent clones it into a sandbox, runs tests,
+                finds bugs, writes fixes, commits with{" "}
+                <code className="text-emerald-400 text-xs bg-emerald-500/10 px-1.5 py-0.5 rounded">[AI-AGENT]</code>{" "}
+                prefix, and iterates up to 5 times.
+              </p>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-white/[0.03] rounded-lg p-3 text-center">
+                  <Bug className="w-4 h-4 text-emerald-400 mx-auto mb-1" />
+                  <span className="text-[10px] text-zinc-500 block">Detect</span>
+                  <span className="text-xs text-zinc-300 font-medium">& Fix Bugs</span>
+                </div>
+                <div className="bg-white/[0.03] rounded-lg p-3 text-center">
+                  <Zap className="w-4 h-4 text-emerald-400 mx-auto mb-1" />
+                  <span className="text-[10px] text-zinc-500 block">5 Iterations</span>
+                  <span className="text-xs text-zinc-300 font-medium">Auto Retry</span>
+                </div>
+                <div className="bg-white/[0.03] rounded-lg p-3 text-center">
+                  <GitBranch className="w-4 h-4 text-emerald-400 mx-auto mb-1" />
+                  <span className="text-[10px] text-zinc-500 block">Auto PR</span>
+                  <span className="text-xs text-zinc-300 font-medium">Creation</span>
+                </div>
+              </div>
+
+              {/* Rules bar */}
+              <div className="flex items-center gap-3 mt-4 pt-4 border-t border-white/5">
+                <code className="text-[10px] text-emerald-400/70 bg-emerald-500/5 px-2 py-1 rounded-md font-mono">
+                  TEAMNAME_LEADERNAME_AI_Fix
+                </code>
+                <span className="text-[10px] text-zinc-600">•</span>
+                <span className="text-[10px] text-zinc-500">Sandbox execution</span>
+              </div>
+            </div>
+          </Link>
         </div>
       </div>
 
-      {/* Recent Activity - Premium Glass List */}
+      {/* ═══════════════════════════════════════════════════════════════════
+          COMPLIANCE & RULES SECTION
+          ═══════════════════════════════════════════════════════════════════ */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xs font-medium text-zinc-500 uppercase tracking-widest">
+            RIFT 2026 Compliance
+          </h2>
+          <div className="h-px flex-1 ml-4 bg-gradient-to-r from-zinc-800 to-transparent" />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Naming Rules */}
+          <div className="glass rounded-xl p-5 border border-white/5">
+            <h3 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              Branch Naming Rules
+            </h3>
+            <ul className="space-y-2 text-xs text-zinc-500">
+              <li className="flex items-center gap-2">
+                <span className="w-1 h-1 bg-emerald-400 rounded-full" />
+                All UPPERCASE letters
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="w-1 h-1 bg-emerald-400 rounded-full" />
+                Spaces replaced with underscores (_)
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="w-1 h-1 bg-emerald-400 rounded-full" />
+                Ends with <code className="text-emerald-400 bg-emerald-500/10 px-1 rounded">_AI_Fix</code>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="w-1 h-1 bg-emerald-400 rounded-full" />
+                No special characters except underscores
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="w-1 h-1 bg-emerald-400 rounded-full" />
+                Commits prefixed with <code className="text-violet-400 bg-violet-500/10 px-1 rounded">[AI-AGENT]</code>
+              </li>
+            </ul>
+          </div>
+
+          {/* Disqualification Criteria */}
+          <div className="glass rounded-xl p-5 border border-red-500/10">
+            <h3 className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+              ⚠ Disqualification Criteria
+            </h3>
+            <ul className="space-y-2 text-xs text-zinc-500">
+              <li className="flex items-center gap-2">
+                <span className="w-1 h-1 bg-red-400 rounded-full" />
+                No live deployment URL
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="w-1 h-1 bg-red-400 rounded-full" />
+                Human intervention during agent execution
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="w-1 h-1 bg-red-400 rounded-full" />
+                Commits without <code className="text-red-400">[AI-AGENT]</code> prefix
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="w-1 h-1 bg-red-400 rounded-full" />
+                Incorrect branch name format
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="w-1 h-1 bg-red-400 rounded-full" />
+                Pushing directly to main branch
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="w-1 h-1 bg-red-400 rounded-full" />
+                Hardcoded test file paths
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          RECENT ACTIVITY
+          ═══════════════════════════════════════════════════════════════════ */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xs font-medium text-zinc-500 uppercase tracking-widest">
@@ -187,7 +362,7 @@ export default function DashboardPage() {
               </div>
               <p className="text-zinc-400 text-sm font-medium">No activity yet</p>
               <p className="text-zinc-600 text-xs mt-1">
-                Connect a repo to Code Police to see your activity here
+                Connect a repo to Code Police or start a Self-Healing session
               </p>
             </div>
           )}
@@ -197,108 +372,9 @@ export default function DashboardPage() {
   );
 }
 
-// Premium Stat Card with Glass Effect
-function StatCard({
-  config,
-  value,
-  sub,
-  isLoading,
-}: {
-  config: (typeof statConfigs)[0];
-  value: number;
-  sub: string;
-  isLoading: boolean;
-}) {
-  const Icon = config.icon;
-
-  return (
-    <div
-      className={`
-        glass rounded-xl p-5 transition-all duration-300
-        hover:scale-[1.02] hover:${config.glowClass}
-        border-l-2 ${config.accentBorder}
-      `}
-    >
-      <div className="flex items-center gap-2.5 mb-3">
-        <div className={`p-2 rounded-lg ${config.iconBg}`}>
-          <Icon className={`w-4 h-4 ${config.iconColor}`} />
-        </div>
-        <span className="text-xs text-zinc-400 font-medium">{config.label}</span>
-      </div>
-      {isLoading ? (
-        <div className="animate-pulse">
-          <div className="h-8 w-14 bg-zinc-800/60 rounded mb-1" />
-          <div className="h-3 w-20 bg-zinc-800/40 rounded" />
-        </div>
-      ) : (
-        <>
-          <p className="text-3xl font-bold text-white tabular-nums tracking-tight">
-            {value}
-          </p>
-          <p className="text-xs text-zinc-500 mt-1">{sub}</p>
-        </>
-      )}
-    </div>
-  );
-}
-
-// Premium Agent Card with Hover Effects
-function AgentCard({
-  agent,
-}: {
-  agent: (typeof agents)[0];
-}) {
-  return (
-    <Link
-      href={agent.href}
-      className={`
-        group glass rounded-xl p-4 transition-all duration-300
-        hover:scale-[1.02] ${agent.accentClass}
-        relative overflow-hidden
-      `}
-    >
-      {/* Accent line on top */}
-      <div
-        className={`
-          absolute inset-x-0 top-0 h-0.5 opacity-0 group-hover:opacity-100
-          transition-opacity duration-300
-          bg-gradient-to-r from-transparent via-current to-transparent
-          ${agent.iconColor}
-        `}
-      />
-
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-3">
-          <div className={`p-2.5 rounded-xl ${agent.iconBg} transition-transform duration-300 group-hover:scale-110`}>
-            <agent.icon className={`w-5 h-5 ${agent.iconColor}`} />
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-zinc-100 group-hover:text-white transition-colors">
-              {agent.name}
-            </h3>
-            <p className="text-xs text-zinc-500 mt-0.5">{agent.description}</p>
-          </div>
-        </div>
-        <ArrowRight
-          className={`
-            w-4 h-4 ${agent.iconColor} opacity-0 
-            group-hover:opacity-100 group-hover:translate-x-0.5 
-            transition-all duration-300 mt-1
-          `}
-        />
-      </div>
-
-      {/* Subtle shimmer on hover */}
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
-        <div className="absolute inset-0 shimmer" />
-      </div>
-    </Link>
-  );
-}
-
-// Premium Activity Row
+// Activity Row
 function ActivityRow({ activity }: { activity: ActivityItem }) {
-  const config = activityConfig[activity.type];
+  const config = activityConfig[activity.type] || activityConfig["code-review"];
   const Icon = config.icon;
 
   const formatTime = (timestamp: string) => {
