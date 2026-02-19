@@ -46,11 +46,19 @@ const TextHoverEffect = nextDynamic(
   }
 );
 
-const PricingWithChart = nextDynamic(
-  () => import("@/components/ui/pricing-with-chart").then(mod => ({ default: mod.PricingWithChart })),
+const AnimatedGlassyPricing = nextDynamic(
+  () => import("@/components/ui/animated-glassy-pricing").then(mod => ({ default: mod.AnimatedGlassyPricing })),
   {
-    loading: () => <SectionSkeleton height="h-[400px]" />,
-    ssr: true,
+    loading: () => (
+      <div className="h-[600px] w-full flex items-center justify-center bg-black rounded-2xl relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-violet-900/20 via-black to-cyan-900/20" />
+        <div className="relative z-10 flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
+          <span className="text-zinc-500 text-sm">Loading pricing...</span>
+        </div>
+      </div>
+    ),
+    ssr: false, // WebGL is client-only
   }
 );
 
@@ -123,10 +131,47 @@ export default function LandingPage() {
       </Suspense>
 
       {/* Pricing Section */}
-      <section className="py-20 px-4">
-        <Suspense fallback={<SectionSkeleton height="h-[400px]" />}>
-          <PricingWithChart />
-        </Suspense>
+      <section id="pricing" className="py-20 px-4">
+        <div className="mx-auto max-w-6xl">
+          <Suspense fallback={<SectionSkeleton height="h-[600px]" />}>
+            <AnimatedGlassyPricing
+              plans={[
+                {
+                  planName: 'Free',
+                  description: 'Best for testing & understanding',
+                  price: '0',
+                  features: [
+                    '3 Code Police Analyses',
+                    '1 Pitch Deck Generation',
+                    '10 Database Queries',
+                    'Community Support',
+                  ],
+                  buttonText: 'Get Started Free',
+                  buttonHref: '/sign-up',
+                  buttonVariant: 'secondary',
+                },
+                {
+                  planName: 'Pro',
+                  description: 'Perfect for early-stage startups & solo founders',
+                  price: '29',
+                  features: [
+                    'Unlimited Code Police Analyses',
+                    'Unlimited Pitch Deck Generations',
+                    'Unlimited Database Queries',
+                    'Priority AI Processing',
+                    'Auto-fix with Pull Requests',
+                    'Team Collaboration (5 members)',
+                  ],
+                  buttonText: 'Subscribe',
+                  buttonHref: '/sign-up',
+                  isPopular: true,
+                  buttonVariant: 'primary',
+                },
+              ]}
+              showAnimatedBackground={true}
+            />
+          </Suspense>
+        </div>
       </section>
 
       {/* Sticky Footer Reveal */}

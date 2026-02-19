@@ -16,6 +16,7 @@ import { InfiniteGrid } from "@/components/ui/infinite-grid";
 import { Cover } from "@/components/ui/cover";
 import { ShootingStars } from "@/components/ui/shooting-stars";
 import { BackgroundRippleEffect } from "@/components/ui/background-ripple-effect";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { motion } from "framer-motion";
 
 /**
@@ -245,18 +246,28 @@ export default function HeroSection() {
                   {statConfigs.map((config, index) => (
                     <div
                       key={config.key}
-                      className={`glass rounded-xl p-5 border-l-2 ${config.borderColor} hover:scale-[1.02] transition-transform duration-300 cursor-pointer`}
+                      className="relative rounded-[1.25rem] border-[0.75px] border-zinc-800 p-2"
                     >
-                      <div className="flex items-center gap-2.5 mb-3">
-                        <div className={`p-2 rounded-lg ${config.iconBg}`}>
-                          <config.icon className={`w-4 h-4 ${config.iconColor}`} />
+                      <GlowingEffect
+                        spread={40}
+                        glow={true}
+                        disabled={false}
+                        proximity={64}
+                        inactiveZone={0.01}
+                        borderWidth={3}
+                      />
+                      <div className={`relative glass rounded-xl p-5 border-l-2 ${config.borderColor} cursor-pointer`}>
+                        <div className="flex items-center gap-2.5 mb-3">
+                          <div className={`p-2 rounded-lg ${config.iconBg}`}>
+                            <config.icon className={`w-4 h-4 ${config.iconColor}`} />
+                          </div>
+                          <span className="text-xs text-zinc-400 font-medium">{config.label}</span>
                         </div>
-                        <span className="text-xs text-zinc-400 font-medium">{config.label}</span>
+                        <p className="text-3xl font-bold text-white tabular-nums tracking-tight">
+                          {statValues[index].value.toLocaleString()}
+                        </p>
+                        <p className="text-xs text-zinc-500 mt-1">{statValues[index].sub}</p>
                       </div>
-                      <p className="text-3xl font-bold text-white tabular-nums tracking-tight">
-                        {statValues[index].value.toLocaleString()}
-                      </p>
-                      <p className="text-xs text-zinc-500 mt-1">{statValues[index].sub}</p>
                     </div>
                   ))}
                 </div>
@@ -270,22 +281,31 @@ export default function HeroSection() {
                 {/* Features Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   {features.map((feature) => (
-                    <Link
-                      key={feature.id}
-                      href="/dashboard"
-                      className={`group glass rounded-xl p-4 flex items-center gap-3 transition-all duration-300 hover:scale-[1.02] ${feature.glowClass}`}
-                    >
-                      <div className={`p-2.5 rounded-xl ${feature.iconBg} transition-transform duration-300 group-hover:scale-110`}>
-                        <feature.icon className={`w-5 h-5 ${feature.iconColor}`} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h5 className="text-sm font-semibold text-zinc-100 group-hover:text-white truncate">
-                          {feature.name}
-                        </h5>
-                        <p className="text-xs text-zinc-500 truncate">{feature.description}</p>
-                      </div>
-                      <ArrowRight className={`w-4 h-4 ${feature.iconColor} opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all`} />
-                    </Link>
+                    <div key={feature.id} className="relative rounded-[1.25rem] border-[0.75px] border-zinc-800 p-2">
+                      <GlowingEffect
+                        spread={40}
+                        glow={true}
+                        disabled={false}
+                        proximity={64}
+                        inactiveZone={0.01}
+                        borderWidth={3}
+                      />
+                      <Link
+                        href="/dashboard"
+                        className="group relative glass rounded-xl p-4 flex items-center gap-3 transition-all duration-300"
+                      >
+                        <div className={`p-2.5 rounded-xl ${feature.iconBg} transition-transform duration-300 group-hover:scale-110`}>
+                          <feature.icon className={`w-5 h-5 ${feature.iconColor}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h5 className="text-sm font-semibold text-zinc-100 group-hover:text-white truncate">
+                            {feature.name}
+                          </h5>
+                          <p className="text-xs text-zinc-500 truncate">{feature.description}</p>
+                        </div>
+                        <ArrowRight className={`w-4 h-4 ${feature.iconColor} opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all`} />
+                      </Link>
+                    </div>
                   ))}
                 </div>
 
@@ -296,27 +316,37 @@ export default function HeroSection() {
                 </div>
 
                 {/* Activity Preview - Code Police only */}
-                <div className="glass rounded-xl overflow-hidden">
-                  <div className="divide-y divide-white/5">
-                    {[
-                      { text: "Code review completed", desc: "Analyzed 156 files in react-app", time: "2m ago", color: "bg-violet-500", iconBg: "bg-violet-500/10", iconColor: "text-violet-400", Icon: Shield },
-                      { text: "Auto-fix PR created", desc: "Fixed 5 security issues in api-server", time: "15m ago", color: "bg-amber-500", iconBg: "bg-amber-500/10", iconColor: "text-amber-400", Icon: Zap },
-                      { text: "Critical vulnerability found", desc: "SQL injection in user-service", time: "1h ago", color: "bg-red-500", iconBg: "bg-red-500/10", iconColor: "text-red-400", Icon: Bug },
-                    ].map((item, i) => (
-                      <div key={i} className="flex items-center gap-4 px-5 py-4 hover:bg-white/[0.02] transition-colors cursor-pointer">
-                        <div className={`p-2 rounded-lg ${item.iconBg}`}>
-                          <item.Icon className={`w-4 h-4 ${item.iconColor}`} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-1.5 h-1.5 rounded-full ${item.color}`} />
-                            <p className="text-sm text-zinc-200 font-medium truncate">{item.text}</p>
+                <div className="relative rounded-[1.25rem] border-[0.75px] border-zinc-800 p-2">
+                  <GlowingEffect
+                    spread={40}
+                    glow={true}
+                    disabled={false}
+                    proximity={64}
+                    inactiveZone={0.01}
+                    borderWidth={3}
+                  />
+                  <div className="relative glass rounded-xl overflow-hidden">
+                    <div className="divide-y divide-white/5">
+                      {[
+                        { text: "Code review completed", desc: "Analyzed 156 files in react-app", time: "2m ago", color: "bg-violet-500", iconBg: "bg-violet-500/10", iconColor: "text-violet-400", Icon: Shield },
+                        { text: "Auto-fix PR created", desc: "Fixed 5 security issues in api-server", time: "15m ago", color: "bg-amber-500", iconBg: "bg-amber-500/10", iconColor: "text-amber-400", Icon: Zap },
+                        { text: "Critical vulnerability found", desc: "SQL injection in user-service", time: "1h ago", color: "bg-red-500", iconBg: "bg-red-500/10", iconColor: "text-red-400", Icon: Bug },
+                      ].map((item, i) => (
+                        <div key={i} className="flex items-center gap-4 px-5 py-4 hover:bg-white/[0.02] transition-colors cursor-pointer">
+                          <div className={`p-2 rounded-lg ${item.iconBg}`}>
+                            <item.Icon className={`w-4 h-4 ${item.iconColor}`} />
                           </div>
-                          <p className="text-xs text-zinc-500 truncate mt-0.5">{item.desc}</p>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-1.5 h-1.5 rounded-full ${item.color}`} />
+                              <p className="text-sm text-zinc-200 font-medium truncate">{item.text}</p>
+                            </div>
+                            <p className="text-xs text-zinc-500 truncate mt-0.5">{item.desc}</p>
+                          </div>
+                          <span className="text-xs text-zinc-600 whitespace-nowrap">{item.time}</span>
                         </div>
-                        <span className="text-xs text-zinc-600 whitespace-nowrap">{item.time}</span>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
