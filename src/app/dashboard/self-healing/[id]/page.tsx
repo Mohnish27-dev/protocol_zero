@@ -196,11 +196,11 @@ export default function SessionDetailPage() {
                     case "test_result":
                         setLogs((prev) => [
                             ...prev,
-                            healingEvent.data.passed
-                                ? `🧪 Test PASSED ✅ (attempt ${healingEvent.data.attempt})`
-                                : healingEvent.data.errorCount > 0
-                                    ? `🧪 Test exited with ${healingEvent.data.errorCount} error(s) — scanning for fixes (attempt ${healingEvent.data.attempt})`
-                                    : `🧪 Tests need fixes — AI scanner analyzing source code (attempt ${healingEvent.data.attempt})`,
+                            (healingEvent.data.passed as boolean)
+                                ? `🧪 Test PASSED ✅ (attempt ${healingEvent.data.attempt as number})`
+                                : (healingEvent.data.errorCount as number) > 0
+                                    ? `🧪 Test exited with ${healingEvent.data.errorCount as number} error(s) — scanning for fixes (attempt ${healingEvent.data.attempt as number})`
+                                    : `🧪 Tests need fixes — AI scanner analyzing source code (attempt ${healingEvent.data.attempt as number})`,
                         ]);
                         break;
 
