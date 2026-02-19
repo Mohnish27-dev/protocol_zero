@@ -27,6 +27,7 @@ import { HealingTimeline } from "@/components/self-healing/HealingTimeline";
 import { BugTable } from "@/components/self-healing/BugTable";
 import { ScoreBreakdown } from "@/components/self-healing/ScoreBreakdown";
 import { AttestationLog } from "@/components/self-healing/AttestationLog";
+import { FileTree } from "@/components/self-healing/FileTree";
 import type {
     HealingStatus,
     HealingBug,
@@ -61,7 +62,7 @@ export default function SessionDetailPage() {
     const [session, setSession] = useState<SessionDetail | null>(null);
     const [loading, setLoading] = useState(true);
     const [logs, setLogs] = useState<string[]>([]);
-    const [activeTab, setActiveTab] = useState<"timeline" | "bugs" | "score" | "attestations" | "logs">(
+    const [activeTab, setActiveTab] = useState<"timeline" | "files" | "bugs" | "score" | "attestations" | "logs">(
         "timeline"
     );
     const logsEndRef = useRef<HTMLDivElement>(null);
@@ -393,6 +394,60 @@ export default function SessionDetailPage() {
                 </a>
             )}
 
+            {/* Stats Overview */}
+            {session.bugs.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {[
+                        {
+                            label: "Bugs Fixed",
+                            value: `${session.bugs.filter((b) => b.fixed).length}/${session.bugs.length}`,
+                            color: session.bugs.every((b) => b.fixed) ? "text-emerald-400" : "text-amber-400",
+                            bg: session.bugs.every((b) => b.fixed) ? "bg-emerald-500/10 border-emerald-500/20" : "bg-amber-500/10 border-amber-500/20",
+                        },
+                        {
+                            label: "Files Affected",
+                            value: `${new Set(session.bugs.map((b) => b.filePath)).size}`,
+                            color: "text-blue-400",
+                            bg: "bg-blue-500/10 border-blue-500/20",
+                        },
+                        {
+                            label: "Attempts Used",
+                            value: `${session.attempts.length}/${session.maxAttempts}`,
+                            color: "text-violet-400",
+                            bg: "bg-violet-500/10 border-violet-500/20",
+                        },
+                        {
+                            label: "Score",
+                            value: session.score ? `${session.score.finalScore}/100` : "—",
+                            color: session.score
+                                ? session.score.finalScore >= 80
+                                    ? "text-emerald-400"
+                                    : session.score.finalScore >= 50
+                                        ? "text-yellow-400"
+                                        : "text-red-400"
+                                : "text-zinc-500",
+                            bg: session.score
+                                ? session.score.finalScore >= 80
+                                    ? "bg-emerald-500/10 border-emerald-500/20"
+                                    : "bg-yellow-500/10 border-yellow-500/20"
+                                : "bg-white/5 border-white/5",
+                        },
+                    ].map((stat) => (
+                        <div
+                            key={stat.label}
+                            className={`rounded-xl border p-3.5 ${stat.bg} backdrop-blur-sm`}
+                        >
+                            <div className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">
+                                {stat.label}
+                            </div>
+                            <div className={`text-xl font-bold ${stat.color}`}>
+                                {stat.value}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
             {/* Active progress bar */}
             {isActive && !isStale && (
                 <div className="relative h-1 bg-white/5 rounded-full overflow-hidden">
@@ -448,6 +503,7 @@ export default function SessionDetailPage() {
             <div className="flex gap-1 bg-neutral-900/50 rounded-xl p-1 border border-white/5">
                 {[
                     { key: "timeline" as const, label: "Timeline", count: session.attempts.length },
+                    { key: "files" as const, label: "📁 Files", count: new Set(session.bugs.map((b) => b.filePath)).size },
                     { key: "bugs" as const, label: "Bugs", count: session.bugs.length },
                     { key: "score" as const, label: "Score", count: null },
                     { key: "attestations" as const, label: "⛓️ On-Chain", count: null },
@@ -481,6 +537,8 @@ export default function SessionDetailPage() {
                         isActive={isActive}
                     />
                 )}
+
+                {activeTab === "files" && <FileTree bugs={session.bugs} />}
 
                 {activeTab === "bugs" && <BugTable bugs={session.bugs} />}
 

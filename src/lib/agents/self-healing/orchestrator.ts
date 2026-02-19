@@ -454,6 +454,30 @@ export async function runHealingLoop(input: OrchestratorInput): Promise<void> {
                 }
 
                 // Attestations are recorded after the loop to avoid slowing down iterations
+                // Record on-chain attestations (fire-and-forget, non-blocking)
+                if (isAttestationEnabled()) {
+                    emitLog(sessionId, `⛓️ Recording ${fixResult.bugsFixed} fix(es) on-chain...`);
+                    const fixedBugs = allBugs.filter((b) => b.fixed && b.fixedAtAttempt === attempt);
+                    for (const bug of fixedBugs) {
+                        recordFixAttestation({
+                            sessionId,
+                            bugCategory: bug.category,
+                            filePath: bug.filePath,
+                            line: bug.line,
+                            errorMessage: bug.message,
+                            fixDescription: `Fixed ${bug.category} error at line ${bug.line}`,
+                            testBeforePassed: false,
+                            testAfterPassed: false, // Will be updated in next attempt
+                            commitSha: commitSha,
+                        }).then((result) => {
+                            if (result.success) {
+                                emitLog(sessionId, `⛓️ On-chain attestation recorded: ${result.etherscanUrl}`);
+                            }
+                        }).catch(() => {
+                            // Non-blocking — attestation failure doesn't stop healing
+                        });
+                    }
+                }
             } else {
                 emitLog(sessionId, `⚠️ No file changes to commit`);
             }
