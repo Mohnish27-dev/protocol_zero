@@ -17,6 +17,7 @@ import {
   IconShield,
   IconSettings,
   IconBell,
+  IconHeartbeat,
 } from "@tabler/icons-react";
 import { FloatingDock, DockItem } from "@/components/ui/floating-dock";
 import { ShootingStars } from "@/components/ui/shooting-stars";
@@ -50,7 +51,12 @@ export function DashboardShell({ children }: DashboardShellProps) {
       icon: <IconShield className="h-full w-full" />,
       active: isActive("/dashboard/code-police"),
     },
-
+    {
+      title: "Self-Healing",
+      href: "/dashboard/self-healing",
+      icon: <IconHeartbeat className="h-full w-full" />,
+      active: isActive("/dashboard/self-healing"),
+    },
     {
       title: "Notifications",
       href: "/dashboard/notifications",

@@ -40,7 +40,7 @@ export interface UserSettings {
 // AGENT TYPES
 // ============================================================================
 
-export type AgentType = "code-police";
+export type AgentType = "code-police" | "self-healing";
 
 export interface AgentConfig {
   id: AgentType;
@@ -61,6 +61,16 @@ export const AGENTS: AgentConfig[] = [
     icon: "Shield",
     color: "red",
     href: "/dashboard/code-police",
+    isEnabled: true,
+  },
+  {
+    id: "self-healing",
+    name: "Self-Healing",
+    description:
+      "AI agent that automatically finds and fixes bugs until all tests pass",
+    icon: "Heartbeat",
+    color: "emerald",
+    href: "/dashboard/self-healing",
     isEnabled: true,
   },
 ];
@@ -211,4 +221,96 @@ export interface PaginatedResponse<T> {
   page: number;
   limit: number;
   hasMore: boolean;
+}
+
+// ============================================================================
+// SELF-HEALING AGENT TYPES
+// ============================================================================
+
+export type HealingStatus =
+  | "queued"
+  | "cloning"
+  | "scanning"
+  | "testing"
+  | "fixing"
+  | "pushing"
+  | "completed"
+  | "failed";
+
+export type BugCategory =
+  | "SYNTAX"
+  | "LINTING"
+  | "RUNTIME"
+  | "LOGIC"
+  | "IMPORT"
+  | "TYPE"
+  | "DEPENDENCY";
+
+export interface HealingSession {
+  id: string;
+  userId: string;
+  repoUrl: string;
+  repoOwner: string;
+  repoName: string;
+  branchName: string;
+  status: HealingStatus;
+  currentAttempt: number;
+  maxAttempts: number;
+  bugs: HealingBug[];
+  attempts: HealingAttempt[];
+  score: HealingScore | null;
+  startedAt: Timestamp;
+  completedAt?: Timestamp;
+  error?: string;
+}
+
+export interface HealingBug {
+  id: string;
+  category: BugCategory;
+  filePath: string;
+  line: number;
+  message: string;
+  severity: IssueSeverity;
+  fixed: boolean;
+  fixedAtAttempt?: number;
+}
+
+export interface HealingAttempt {
+  attempt: number;
+  status: "running" | "passed" | "failed";
+  testOutput: string;
+  bugsFound: number;
+  bugsFixed: number;
+  commitSha?: string;
+  commitMessage?: string;
+  durationMs: number;
+  timestamp: string;
+}
+
+export interface HealingScore {
+  totalBugs: number;
+  bugsFixed: number;
+  testsPassed: boolean;
+  attempts: number;
+  totalCommits: number;
+  timeSeconds: number;
+  speedBonus: number;
+  commitPenalty: number;
+  finalScore: number;
+}
+
+export type HealingEventType =
+  | "status"
+  | "bug_found"
+  | "test_result"
+  | "fix_applied"
+  | "attempt_complete"
+  | "score"
+  | "error"
+  | "log";
+
+export interface HealingEvent {
+  type: HealingEventType;
+  data: Record<string, unknown>;
+  timestamp: string;
 }
