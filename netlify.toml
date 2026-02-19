@@ -1,0 +1,6 @@
+[build]
+  command = "node scripts/validate-env.js && next build --webpack"
+  publish = ".next"
+
+[build.environment]
+  NEXT_PRIVATE_STANDALONE = "true"
