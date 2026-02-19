@@ -19,6 +19,8 @@ import {
     ExternalLink,
     Loader2,
     Terminal,
+    AlertTriangle,
+    XCircle,
 } from "lucide-react";
 import { StatusBadge } from "@/components/self-healing/StatusBadge";
 import { HealingTimeline } from "@/components/self-healing/HealingTimeline";
@@ -47,6 +49,7 @@ interface SessionDetail {
     score: HealingScore | null;
     startedAt: string;
     completedAt?: string;
+    updatedAt?: string;
     error?: string;
     prUrl?: string;
     prNumber?: number;
@@ -63,6 +66,8 @@ export default function SessionDetailPage() {
     );
     const logsEndRef = useRef<HTMLDivElement>(null);
     const eventSourceRef = useRef<EventSource | null>(null);
+    const [isStale, setIsStale] = useState(false);
+    const [markingFailed, setMarkingFailed] = useState(false);
 
     // Fetch session details
     const fetchSession = useCallback(async () => {
@@ -71,7 +76,28 @@ export default function SessionDetailPage() {
             const res = await fetch(`/api/self-healing/sessions/${id}`);
             if (res.ok) {
                 const data = await res.json();
-                setSession(data.session);
+                const fetched = data.session;
+                // Normalize fields that may be undefined in Firestore
+                fetched.bugs = fetched.bugs || [];
+                fetched.attempts = fetched.attempts || [];
+                fetched.score = fetched.score || null;
+
+                setSession((prev) => {
+                    if (!prev) return fetched;
+                    // Merge: keep SSE-added bugs that aren't in DB yet
+                    const dbBugIds = new Set(fetched.bugs.map((b: HealingBug) => b.id));
+                    const sseBugs = prev.bugs.filter((b) => !dbBugIds.has(b.id) && !b.id.startsWith('bug-'));
+                    // Also keep client-generated bugs (from SSE) if DB has fewer
+                    const clientBugs = prev.bugs.filter((b) => b.id.startsWith('bug-'));
+                    const mergedBugs = fetched.bugs.length >= prev.bugs.length
+                        ? fetched.bugs
+                        : [...fetched.bugs, ...clientBugs.filter((cb) => !fetched.bugs.some((fb: HealingBug) => fb.filePath === cb.filePath && fb.line === cb.line))];
+                    return {
+                        ...fetched,
+                        bugs: mergedBugs,
+                        attempts: fetched.attempts.length >= prev.attempts.length ? fetched.attempts : prev.attempts,
+                    };
+                });
             }
         } catch (err) {
             console.error("Failed to fetch session:", err);
@@ -132,16 +158,32 @@ export default function SessionDetailPage() {
                                 severity: "high",
                                 fixed: false,
                             };
-                            return { ...prev, bugs: [...prev.bugs, newBug] };
+                            const existingBugs = prev.bugs || [];
+                            return { ...prev, bugs: [...existingBugs, newBug] };
                         });
                         break;
 
                     case "fix_applied":
                         setSession((prev) => {
                             if (!prev) return prev;
-                            const updatedBugs = prev.bugs.map((b) =>
-                                b.id === healingEvent.data.bugId ? { ...b, fixed: true } : b
-                            );
+                            const fixFilePath = healingEvent.data.filePath as string;
+                            const fixBugId = healingEvent.data.bugId as string;
+                            const desc = (healingEvent.data.description as string) || "";
+                            // Extract line number from description like "Fixed LINTING error at line 10"
+                            const lineMatch = desc.match(/line (\d+)/);
+                            const fixLine = lineMatch ? parseInt(lineMatch[1], 10) : null;
+
+                            const updatedBugs = (prev.bugs || []).map((b) => {
+                                if (b.fixed) return b;
+                                // Match by server bugId OR by filePath + line
+                                if (
+                                    b.id === fixBugId ||
+                                    (b.filePath === fixFilePath && fixLine && b.line === fixLine)
+                                ) {
+                                    return { ...b, fixed: true, fixedAtAttempt: prev.currentAttempt || 1 };
+                                }
+                                return b;
+                            });
                             return { ...prev, bugs: updatedBugs };
                         });
                         setLogs((prev) => [
@@ -225,6 +267,47 @@ export default function SessionDetailPage() {
     const isActive = session
         ? !["completed", "failed"].includes(session.status)
         : false;
+
+    // Detect stale/orphaned sessions (server restarted while healing was running)
+    useEffect(() => {
+        if (!session || !isActive) {
+            setIsStale(false);
+            return;
+        }
+        const updatedAt = session.updatedAt
+            ? new Date(session.updatedAt).getTime()
+            : new Date(session.startedAt).getTime();
+        const staleCutoff = Date.now() - 2 * 60 * 1000; // 2 minutes
+        setIsStale(updatedAt < staleCutoff);
+    }, [session, isActive]);
+
+    // Poll Firestore while session is active (recovers state after navigation)
+    useEffect(() => {
+        if (!isActive || isStale) return;
+        const interval = setInterval(() => {
+            fetchSession();
+        }, 5000);
+        return () => clearInterval(interval);
+    }, [isActive, isStale, fetchSession]);
+
+    // Mark an orphaned session as failed
+    const handleMarkFailed = async () => {
+        if (!id) return;
+        setMarkingFailed(true);
+        try {
+            const res = await fetch(`/api/self-healing/sessions/${id}/fail`, {
+                method: "POST",
+            });
+            if (res.ok) {
+                await fetchSession();
+                setIsStale(false);
+            }
+        } catch (err) {
+            console.error("Failed to mark session as failed:", err);
+        } finally {
+            setMarkingFailed(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -311,7 +394,7 @@ export default function SessionDetailPage() {
             )}
 
             {/* Active progress bar */}
-            {isActive && (
+            {isActive && !isStale && (
                 <div className="relative h-1 bg-white/5 rounded-full overflow-hidden">
                     <div
                         className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-full animate-pulse"
@@ -322,6 +405,42 @@ export default function SessionDetailPage() {
                             )}%`,
                         }}
                     />
+                </div>
+            )}
+
+            {/* Interrupted/Stale Session Banner */}
+            {isStale && (
+                <div className="relative bg-gradient-to-r from-amber-950/50 via-neutral-900/80 to-orange-950/50 backdrop-blur-xl border border-amber-500/30 rounded-2xl p-5">
+                    <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/50 to-transparent" />
+                    <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3">
+                            <div className="p-2 bg-amber-500/20 rounded-lg mt-0.5">
+                                <AlertTriangle className="w-5 h-5 text-amber-400" />
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-semibold text-amber-200">
+                                    Session Interrupted
+                                </h3>
+                                <p className="text-xs text-zinc-400 mt-1 max-w-lg">
+                                    The server was restarted while this healing session was running.
+                                    The background process has been lost. You can mark this session
+                                    as failed and start a new one.
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleMarkFailed}
+                            disabled={markingFailed}
+                            className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-xl text-red-400 text-xs font-medium transition-colors whitespace-nowrap disabled:opacity-50"
+                        >
+                            {markingFailed ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                                <XCircle className="w-3.5 h-3.5" />
+                            )}
+                            Mark as Failed
+                        </button>
+                    </div>
                 </div>
             )}
 

@@ -230,10 +230,21 @@ export async function runHealingLoop(input: OrchestratorInput): Promise<void> {
                     line: e.line,
                     message: e.message,
                     type: e.type,
-                }))
+                })),
+                {
+                    onBugFound: (bug) => {
+                        emitBugFound(sessionId, {
+                            category: bug.category,
+                            filePath: bug.filePath,
+                            line: bug.line,
+                            message: bug.message,
+                        });
+                    },
+                    onLog: (msg) => emitLog(sessionId, msg),
+                }
             );
 
-            // Track new bugs
+            // Track new bugs (already emitted via callback above)
             const newBugs: HealingBug[] = [];
             for (const bug of bugs) {
                 const existing = allBugs.find(
@@ -242,12 +253,6 @@ export async function runHealingLoop(input: OrchestratorInput): Promise<void> {
                 if (!existing) {
                     allBugs.push(bug);
                     newBugs.push(bug);
-                    emitBugFound(sessionId, {
-                        category: bug.category,
-                        filePath: bug.filePath,
-                        line: bug.line,
-                        message: bug.message,
-                    });
                 }
             }
 
@@ -269,19 +274,22 @@ export async function runHealingLoop(input: OrchestratorInput): Promise<void> {
             const fixResult = await fixAllBugs(
                 repoDir,
                 unfixedBugs.length > 0 ? unfixedBugs : bugs,
-                testResult.fullOutput
+                testResult.fullOutput,
+                {
+                    onFixApplied: (result) => {
+                        emitFixApplied(sessionId, {
+                            filePath: result.filePath,
+                            description: result.description,
+                            bugId: result.bugId,
+                        });
+                    },
+                    onLog: (msg) => emitLog(sessionId, msg),
+                }
             );
 
-            // Emit fix events
+            // Mark bugs as fixed (fix events already emitted via callback)
             for (const result of fixResult.results) {
                 if (result.applied) {
-                    emitFixApplied(sessionId, {
-                        filePath: result.filePath,
-                        description: result.description,
-                        bugId: result.bugId,
-                    });
-
-                    // Mark bug as fixed
                     const bug = allBugs.find((b) => b.id === result.bugId);
                     if (bug) {
                         bug.fixed = true;

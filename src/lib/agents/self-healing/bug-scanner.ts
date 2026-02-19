@@ -143,13 +143,21 @@ Output ONLY a JSON array, no other text.`;
  */
 export async function scanForBugs(
     repoDir: string,
-    testErrors?: Array<{ filePath: string; line: number; message: string; type: string }>
+    testErrors?: Array<{ filePath: string; line: number; message: string; type: string }>,
+    onProgress?: {
+        onBugFound?: (bug: HealingBug) => void;
+        onLog?: (message: string) => void;
+    }
 ): Promise<HealingBug[]> {
-    console.log(`[BugScanner] Scanning repository: ${repoDir}`);
+    const log = (msg: string) => {
+        console.log(msg);
+        onProgress?.onLog?.(msg);
+    };
+    log(`[BugScanner] Scanning repository: ${repoDir}`);
 
     // Scan file tree
     const files = scanFileTree(repoDir);
-    console.log(`[BugScanner] Found ${files.length} analyzable files`);
+    log(`[BugScanner] Found ${files.length} analyzable files`);
 
     if (files.length === 0) {
         return [];
@@ -181,6 +189,9 @@ export async function scanForBugs(
 
         for (let i = 0; i < fileContexts.length; i += batchSize) {
             const batch = fileContexts.slice(i, i + batchSize);
+            const batchNum = Math.floor(i / batchSize) + 1;
+            const totalBatches = Math.ceil(fileContexts.length / batchSize);
+            log(`[BugScanner] Scanning batch ${batchNum}/${totalBatches}...`);
             const prompt = `Scan these code files for bugs and return a JSON array:\n\n${batch.join("\n\n")}${testErrorContext}`;
 
             const response = await model.invoke([
@@ -205,7 +216,7 @@ export async function scanForBugs(
                     }>;
 
                     for (const bug of bugs) {
-                        allBugs.push({
+                        const healingBug: HealingBug = {
                             id: uuidv4(),
                             category: bug.category || "RUNTIME",
                             filePath: bug.filePath,
@@ -213,7 +224,10 @@ export async function scanForBugs(
                             message: bug.message,
                             severity: bug.severity || "medium",
                             fixed: false,
-                        });
+                        };
+                        allBugs.push(healingBug);
+                        onProgress?.onBugFound?.(healingBug);
+                        log(`🐛 Found: ${bug.category} in ${bug.filePath}:${bug.line}`);
                     }
                 } catch (parseError) {
                     console.warn(`[BugScanner] Failed to parse batch ${i}:`, parseError);
@@ -241,7 +255,7 @@ export async function scanForBugs(
             }
         }
 
-        console.log(`[BugScanner] ✅ Found ${allBugs.length} bugs`);
+        log(`[BugScanner] ✅ Found ${allBugs.length} bugs`);
         return allBugs;
     } catch (error) {
         console.error(`[BugScanner] AI scanning failed:`, error);

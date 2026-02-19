@@ -78,7 +78,11 @@ export async function fixBugsInFile(
     repoDir: string,
     filePath: string,
     bugs: HealingBug[],
-    testOutput?: string
+    testOutput?: string,
+    onProgress?: {
+        onFixApplied?: (result: FixResult) => void;
+        onLog?: (message: string) => void;
+    }
 ): Promise<FixResult[]> {
     const fullPath = path.join(repoDir, filePath);
     const results: FixResult[] = [];
@@ -127,6 +131,7 @@ export async function fixBugsInFile(
 
     try {
         console.log(`[FixEngineer] Generating fixes for ${filePath} (${bugs.length} bugs)`);
+        onProgress?.onLog?.(`🔧 Generating fixes for ${filePath} (${bugs.length} bugs)...`);
 
         const response = await model.invoke([
             new SystemMessage(ENGINEER_SYSTEM_PROMPT),
@@ -169,12 +174,17 @@ export async function fixBugsInFile(
         console.log(`[FixEngineer] ✅ Applied fixes to ${filePath}`);
 
         // Mark all bugs in this file as fixed
-        return bugs.map((bug) => ({
+        const results = bugs.map((bug) => ({
             filePath,
             bugId: bug.id,
             description: `Fixed ${bug.category} error at line ${bug.line}`,
             applied: true,
         }));
+        for (const result of results) {
+            onProgress?.onFixApplied?.(result);
+            onProgress?.onLog?.(`✨ Fixed: ${filePath} - ${result.description}`);
+        }
+        return results;
     } catch (error) {
         const err = error as Error;
         console.error(`[FixEngineer] Failed to fix ${filePath}:`, err.message);
@@ -194,7 +204,11 @@ export async function fixBugsInFile(
 export async function fixAllBugs(
     repoDir: string,
     bugs: HealingBug[],
-    testOutput?: string
+    testOutput?: string,
+    onProgress?: {
+        onFixApplied?: (result: FixResult) => void;
+        onLog?: (message: string) => void;
+    }
 ): Promise<{
     results: FixResult[];
     filesChanged: number;
@@ -218,7 +232,7 @@ export async function fixAllBugs(
 
     // Process files sequentially to avoid rate limits
     for (const [filePath, fileBugs] of bugsByFile.entries()) {
-        const results = await fixBugsInFile(repoDir, filePath, fileBugs, testOutput);
+        const results = await fixBugsInFile(repoDir, filePath, fileBugs, testOutput, onProgress);
         allResults.push(...results);
 
         const applied = results.filter((r) => r.applied);
