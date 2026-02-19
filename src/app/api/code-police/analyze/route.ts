@@ -9,7 +9,7 @@ import {
 import { sendAnalysisReport } from "@/lib/agents/code-police/email";
 import { fetchCommit, fetchFileContent } from "@/lib/agents/code-police/github";
 import { getUserEmail } from "@/lib/utils/clerk";
-import type { CodeIssue, AnalysisRun, IssueSeverity } from "@/types";
+import type { CodeIssue, AnalysisRun, IssueSeverity, IssueCategory } from "@/types";
 import type { DocumentData, QueryDocumentSnapshot, Firestore } from "firebase-admin/firestore";
 
 /**
@@ -234,10 +234,15 @@ export async function POST(request: NextRequest) {
       return true;
     }
 
-    // Analyze changed files from commit (filtered)
+    // ========================================================================
+    // PARALLEL ANALYSIS WITH CACHING
+    // ========================================================================
+
+    const CONCURRENCY = 5;
     const allIssues: Omit<CodeIssue, "id" | "analysisRunId" | "projectId" | "isMuted">[] = [];
     const analyzedFiles: string[] = [];
     const skippedFiles: string[] = [];
+    const cachedFiles: string[] = [];
 
     // Ensure commit.files exists
     const commitFiles = commit.files || [];
@@ -247,34 +252,62 @@ export async function POST(request: NextRequest) {
       console.log(`[Analyze] ⚠️ No files in commit to analyze`);
     }
 
-    for (const file of commitFiles) {
-      // Skip removed files
-      if (file.status === "removed") continue;
+    // Filter files first
+    const filesToProcess = commitFiles.filter(file => {
+      if (file.status === "removed") return false;
+      return shouldAnalyzeFile(file.filename);
+    });
 
-      // Apply file filtering
-      if (!shouldAnalyzeFile(file.filename)) {
-        skippedFiles.push(file.filename);
-        continue;
-      }
+    const filesSkippedByFilter = commitFiles.length - filesToProcess.length;
+    if (filesSkippedByFilter > 0) {
+      console.log(`[Analyze] ⏭️ Skipped ${filesSkippedByFilter} files (removed/excluded)`);
+    }
 
-      try {
+    // Import cache utilities
+    const { generateCacheKey, getCachedAnalysis, setCachedAnalysis, processBatch } = await import(
+      "@/lib/agents/code-police/analysis-cache"
+    );
+
+    const token = githubToken; // Capture for closure
+
+    const { results, errors } = await processBatch(
+      filesToProcess,
+      async (file) => {
         // Get file content
         const content = await fetchFileContent(
-          githubToken,
+          token,
           owner,
           repo,
           file.filename,
           actualCommitSha
         );
 
-        // Skip very large files (> 50KB) to avoid token limits
+        // Skip very large files (>50KB) to avoid token limits
         if (content.length > 50000) {
-          console.log(`[Analyze] ⏭️ Skipping (too large: ${content.length} bytes): ${file.filename}`);
-          skippedFiles.push(file.filename);
-          continue;
+          return { filename: file.filename, issues: [], status: "skipped" as const };
         }
 
         const language = detectLanguage(file.filename);
+
+        // Check cache
+        const cacheKey = generateCacheKey(content, language);
+        const cached = await getCachedAnalysis(cacheKey);
+        if (cached) {
+          const remappedIssues = cached.issues.map(i => ({
+            filePath: file.filename,
+            line: i.line,
+            endLine: i.endLine,
+            severity: i.severity as IssueSeverity,
+            category: i.category as IssueCategory,
+            message: i.message,
+            explanation: i.explanation,
+            suggestedFix: i.suggestedFix,
+            ruleId: i.ruleId,
+            codeSnippet: i.codeSnippet,
+          }));
+          return { filename: file.filename, issues: remappedIssues, status: "cached" as const };
+        }
+
         console.log(`[Analyze] 🔍 Analyzing: ${file.filename} (${language})`);
 
         // Analyze the file
@@ -285,10 +318,39 @@ export async function POST(request: NextRequest) {
           commitMessage: commit.commit.message,
         });
 
-        allIssues.push(...issues);
-        analyzedFiles.push(file.filename);
-      } catch (e) {
-        console.warn(`[Analyze] ❌ Failed to analyze ${file.filename}:`, e);
+        // Store in cache
+        await setCachedAnalysis(cacheKey, {
+          issues: issues as import("@/lib/agents/code-police/analysis-cache").CachedAnalysisResult["issues"],
+          timestamp: Date.now(),
+          modelVersion: "gemini-2.5-flash-lite-v1",
+        });
+
+        return { filename: file.filename, issues, status: "analyzed" as const };
+      },
+      CONCURRENCY,
+      (batchNum, totalBatches) => {
+        console.log(`[Analyze] ⚡ Batch ${batchNum}/${totalBatches} complete`);
+      }
+    );
+
+    // Collect results
+    for (const result of results) {
+      if (result.status === "skipped") {
+        skippedFiles.push(result.filename);
+        console.log(`[Analyze] ⏭️ Skipping (too large): ${result.filename}`);
+      } else {
+        allIssues.push(...result.issues);
+        analyzedFiles.push(result.filename);
+        if (result.status === "cached") {
+          cachedFiles.push(result.filename);
+        }
+      }
+    }
+
+    for (const err of errors) {
+      const file = filesToProcess[err.index];
+      if (file) {
+        console.warn(`[Analyze] ❌ Failed to analyze ${file.filename}:`, err.error);
         skippedFiles.push(file.filename);
       }
     }

@@ -309,9 +309,9 @@ export async function generateFixes(input: {
     console.log(`[FixGenerator] 🚀 Starting fix generation for ${input.filePath}`);
     console.log(`[FixGenerator] Issues to fix: ${input.issues.length}`);
 
-    // Try up to 3 times with increasingly aggressive prompts
-    for (let attempt = 1; attempt <= 3; attempt++) {
-        console.log(`[FixGenerator] Attempt ${attempt}/3...`);
+    // Try up to 2 times (reduced from 3 for faster response)
+    for (let attempt = 1; attempt <= 2; attempt++) {
+        console.log(`[FixGenerator] Attempt ${attempt}/2...`);
 
         const result = await generateFixesInternal(input, attempt);
 
@@ -320,7 +320,7 @@ export async function generateFixes(input: {
             return result;
         }
 
-        if (attempt < 3) {
+        if (attempt < 2) {
             console.log(`[FixGenerator] ⚠️ Attempt ${attempt} returned 0 fixes, retrying...`);
         }
     }

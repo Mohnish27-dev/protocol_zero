@@ -3,17 +3,30 @@ import { auth } from "@clerk/nextjs/server";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { fetchRepoTree, fetchFileContent } from "@/lib/agents/code-police/github";
 import { analyzeCode, detectLanguage, generateAnalysisSummary } from "@/lib/agents/code-police/analyzer";
-import type { CodeIssue, IssueSeverity } from "@/types";
+import {
+    generateCacheKey,
+    getCachedAnalysis,
+    setCachedAnalysis,
+    processBatch,
+    getCacheStats,
+    type CachedAnalysisResult,
+} from "@/lib/agents/code-police/analysis-cache";
+import type { CodeIssue, IssueSeverity, IssueCategory } from "@/types";
 
 /**
  * ============================================================================
- * CODE POLICE - FULL REPOSITORY ANALYSIS
+ * CODE POLICE - FULL REPOSITORY ANALYSIS (OPTIMIZED)
  * ============================================================================
  * POST /api/code-police/analyze-repo
  * 
- * Analyzes the entire repository (not just a single commit) for code issues.
- * This is triggered by the "Analyze Full Repo" button on the analytics page.
+ * Analyzes the entire repository with:
+ * - Parallel processing (5 files at a time)
+ * - Multi-layer caching (in-memory + Redis)
+ * - Smart file filtering
  */
+
+const CONCURRENCY = 5; // Files analyzed in parallel
+const MAX_FILES = 50;   // Max files per scan
 
 // File patterns to analyze
 const ANALYZABLE_EXTENSIONS = [
@@ -51,6 +64,8 @@ function shouldAnalyzeFile(filename: string): boolean {
 }
 
 export async function POST(request: NextRequest) {
+    const startTime = Date.now();
+
     try {
         const authResult = await auth();
         const userId = authResult?.userId;
@@ -120,7 +135,8 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        console.log(`[Repo Analysis] Starting full analysis for ${owner}/${repo}`);
+        const cacheStats = getCacheStats();
+        console.log(`[Repo Analysis] 🚀 Starting analysis for ${owner}/${repo} (cache: ${cacheStats.memoryEntries} entries, redis: ${cacheStats.redisAvailable})`);
 
         // Create analysis run
         const analysisRef = adminDb.collection("analysis_runs").doc();
@@ -140,27 +156,46 @@ export async function POST(request: NextRequest) {
         const tree = await fetchRepoTree(githubToken, owner, repo, branch);
         const filesToAnalyze = tree.tree
             .filter(item => item.type === "blob" && shouldAnalyzeFile(item.path))
-            .slice(0, 100); // Limit to 100 files to avoid rate limits
+            .slice(0, MAX_FILES);
 
-        console.log(`[Repo Analysis] Found ${filesToAnalyze.length} files to analyze`);
+        console.log(`[Repo Analysis] 📂 Found ${filesToAnalyze.length} files to analyze (max ${MAX_FILES})`);
 
         const allIssues: Omit<CodeIssue, "id" | "analysisRunId" | "projectId" | "isMuted">[] = [];
         const analyzedFiles: string[] = [];
         const skippedFiles: string[] = [];
+        const cachedFiles: string[] = [];
         const customRules = project.customRules || [];
+        const token = githubToken; // Capture for closure
 
-        for (const file of filesToAnalyze) {
-            try {
-                console.log(`[Repo Analysis] Analyzing: ${file.path}`);
-                const content = await fetchFileContent(githubToken, owner, repo, file.path, branch);
+        // Process files in parallel batches with caching
+        const { results, errors } = await processBatch(
+            filesToAnalyze,
+            async (file) => {
+                // Fetch file content
+                const content = await fetchFileContent(token, owner, repo, file.path, branch);
 
                 // Skip large files
                 if (content.length > 50000) {
-                    skippedFiles.push(file.path);
-                    continue;
+                    return { path: file.path, issues: [], status: "skipped" as const };
                 }
 
                 const language = detectLanguage(file.path);
+
+                // Check cache first
+                const cacheKey = generateCacheKey(content, language, customRules);
+                const cached = await getCachedAnalysis(cacheKey);
+                if (cached) {
+                    // Re-map filePath and cast to proper types
+                    const remappedIssues = cached.issues.map(i => ({
+                        ...i,
+                        filePath: file.path,
+                        severity: i.severity as IssueSeverity,
+                        category: i.category as IssueCategory,
+                    }));
+                    return { path: file.path, issues: remappedIssues, status: "cached" as const };
+                }
+
+                // Analyze with AI
                 const issues = await analyzeCode({
                     code: content,
                     filePath: file.path,
@@ -169,15 +204,45 @@ export async function POST(request: NextRequest) {
                     customRules,
                 });
 
-                allIssues.push(...issues);
-                analyzedFiles.push(file.path);
-            } catch (err) {
-                console.warn(`[Repo Analysis] Failed to analyze ${file.path}:`, err);
+                // Store in cache
+                await setCachedAnalysis(cacheKey, {
+                    issues: issues as CachedAnalysisResult["issues"],
+                    timestamp: Date.now(),
+                    modelVersion: "gemini-2.5-flash-lite-v1",
+                });
+
+                return { path: file.path, issues, status: "analyzed" as const };
+            },
+            CONCURRENCY,
+            (batchNum, totalBatches) => {
+                const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                console.log(`[Repo Analysis] ⚡ Batch ${batchNum}/${totalBatches} complete (${elapsed}s elapsed)`);
+            }
+        );
+
+        // Collect results
+        for (const result of results) {
+            if (result.status === "skipped") {
+                skippedFiles.push(result.path);
+            } else {
+                allIssues.push(...result.issues);
+                analyzedFiles.push(result.path);
+                if (result.status === "cached") {
+                    cachedFiles.push(result.path);
+                }
+            }
+        }
+
+        for (const err of errors) {
+            const file = filesToAnalyze[err.index];
+            if (file) {
+                console.warn(`[Repo Analysis] ❌ Failed: ${file.path}: ${err.error}`);
                 skippedFiles.push(file.path);
             }
         }
 
-        console.log(`[Repo Analysis] Analyzed ${analyzedFiles.length} files, found ${allIssues.length} issues`);
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        console.log(`[Repo Analysis] ✅ Done in ${elapsed}s — ${analyzedFiles.length} analyzed (${cachedFiles.length} cached), ${skippedFiles.length} skipped, ${allIssues.length} issues`);
 
         // Calculate counts
         const issueCounts: Record<IssueSeverity, number> = {
@@ -225,6 +290,8 @@ export async function POST(request: NextRequest) {
             summary,
             filesAnalyzed: analyzedFiles.length,
             filesSkipped: skippedFiles.length,
+            filesCached: cachedFiles.length,
+            analysisTimeMs: Date.now() - startTime,
         });
 
         return NextResponse.json({
@@ -232,8 +299,10 @@ export async function POST(request: NextRequest) {
             runId: analysisRef.id,
             filesAnalyzed: analyzedFiles.length,
             filesSkipped: skippedFiles.length,
+            filesCached: cachedFiles.length,
             issuesFound: allIssues.length,
             issueCounts,
+            analysisTimeMs: Date.now() - startTime,
         });
 
     } catch (error) {
